@@ -1,0 +1,50 @@
+# Node
+node_modules/
+frontend/node_modules/
+
+# Env files
+.env
+
+# Frontend
+node_modules/
+frontend/node_modules/
+dist/
+.vite/
+
+# Backend
+venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Database & data
+autoclean.db
+data/storage/
+data/chroma_db/
+
+# Environment
+.env
+*.env
+
+# OS
+.DS_Store# Frontend
+node_modules/
+frontend/node_modules/
+dist/
+.vite/
+
+# Backend
+venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Database & data
+autoclean.db
+data/storage/
+data/chroma_db/
+
+
+# OS
+.DS_Storebackend/data/storage/
+backend/data/chroma_db/

@@ -1,0 +1,90 @@
+[
+  {
+    "id": "ecom_sku_format",
+    "domain": "ecommerce",
+    "modality": "tabular",
+    "rule": "SKU codes should follow consistent format (alphanumeric, 6-20 characters, may include dashes)",
+    "predicate": "regex_match(column, '^[A-Z0-9-]{6,20}$')",
+    "action": "standardize_sku_format(column)",
+    "confidence": 0.95,
+    "explanation": "E-commerce SKU codes must be consistent for inventory management"
+  },
+  {
+    "id": "ecom_price_positive",
+    "domain": "ecommerce",
+    "modality": "tabular",
+    "rule": "Product prices must be positive numbers (unless discount/refund column)",
+    "predicate": "price >= 0",
+    "action": "flag_negative_prices(price_column)",
+    "confidence": 0.98,
+    "explanation": "Standard e-commerce prices cannot be negative"
+  },
+  {
+    "id": "ecom_price_range",
+    "domain": "ecommerce",
+    "modality": "tabular",
+    "rule": "Prices should be within reasonable e-commerce range ($0.01 - $1,000,000)",
+    "predicate": "range(price, 0.01, 1000000)",
+    "action": "validate_price_range(price_column, 0.01, 1000000)",
+    "confidence": 0.9,
+    "explanation": "E-commerce prices typically fall within this range"
+  },
+  {
+    "id": "ecom_product_category",
+    "domain": "ecommerce",
+    "modality": "tabular",
+    "rule": "Product categories should be from predefined list",
+    "predicate": "in(category, valid_categories)",
+    "action": "validate_category(category_column, valid_categories)",
+    "confidence": 0.85,
+    "explanation": "Categories should be standardized for better organization"
+  },
+  {
+    "id": "ecom_customer_email",
+    "domain": "ecommerce",
+    "modality": "tabular",
+    "rule": "Customer email addresses must be valid format",
+    "predicate": "regex_match(email, '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$')",
+    "action": "validate_customer_email(email_column)",
+    "confidence": 0.95,
+    "explanation": "Valid email format required for customer communication"
+  },
+  {
+    "id": "ecom_order_id_unique",
+    "domain": "ecommerce",
+    "modality": "tabular",
+    "rule": "Order IDs must be unique",
+    "predicate": "unique(order_id)",
+    "action": "enforce_uniqueness(order_id)",
+    "confidence": 0.98,
+    "explanation": "Each order must have a unique identifier"
+  },
+  {
+    "id": "ecom_quantity_positive",
+    "domain": "ecommerce",
+    "modality": "tabular",
+    "rule": "Product quantities must be positive integers",
+    "predicate": "quantity > 0 AND is_integer(quantity)",
+    "action": "validate_quantity(quantity_column)",
+    "confidence": 0.95,
+    "explanation": "Quantities cannot be negative or fractional"
+  },
+  {
+    "id": "ecom_shipping_address",
+    "domain": "ecommerce",
+    "modality": "tabular",
+    "rule": "Shipping addresses should contain street, city, state, zip",
+    "predicate": "has_required_address_fields(address)",
+    "action": "validate_shipping_address(address_column)",
+    "confidence": 0.85,
+    "explanation": "Complete addresses required for shipping"
+  }
+]
+
+
+
+
+
+
+
+

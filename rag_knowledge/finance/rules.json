@@ -1,0 +1,111 @@
+[
+        {
+          "id": "finance_transaction_id_unique",
+          "domain": "finance",
+          "modality": "tabular",
+          "rule": "Transaction IDs must be unique and follow consistent format",
+          "predicate": "unique(transaction_id) AND regex_match(transaction_id, '^[A-Z0-9-]{8,30}$')",
+          "action": "enforce_transaction_id_format(transaction_id)",
+          "confidence": 0.98,
+          "explanation": "Each financial transaction must have a unique identifier for audit and reconciliation",
+          "canonical_concepts": ["transaction_id"]
+        },
+  {
+    "id": "finance_account_number_format",
+    "domain": "finance",
+    "modality": "tabular",
+    "rule": "Account numbers must be 8-16 digits, no special characters",
+    "predicate": "regex_match(account_number, '^\\d{8,16}$')",
+    "action": "validate_account_number(account_number)",
+    "confidence": 0.95,
+    "explanation": "Bank account numbers follow standard format (8-16 digits)"
+  },
+  {
+    "id": "finance_amount_range",
+    "domain": "finance",
+    "modality": "tabular",
+    "rule": "Transaction amounts should be within reasonable banking range",
+    "predicate": "range(transaction_amount, -100000000, 100000000)",
+    "action": "validate_financial_amount(transaction_amount, -100000000, 100000000)",
+    "confidence": 0.9,
+    "explanation": "Financial transaction amounts typically fall within this range",
+    "canonical_concepts": ["transaction_amount"]
+  },
+  {
+    "id": "finance_merchant_not_empty",
+    "domain": "finance",
+    "modality": "tabular",
+    "rule": "Merchant descriptions must not be empty",
+    "predicate": "not_empty(merchant_description)",
+    "action": "flag_empty_merchant_descriptions(merchant_description)",
+    "confidence": 0.95,
+    "explanation": "Merchant descriptions are required for transaction clarity and reporting",
+    "canonical_concepts": ["merchant_description"]
+  },
+  {
+    "id": "finance_debit_credit_standardized",
+    "domain": "finance",
+    "modality": "tabular",
+    "rule": "Debit/Credit indicators must be standardized (DEBIT/CREDIT or D/C)",
+    "predicate": "in(debit_credit, ['DEBIT', 'CREDIT', 'D', 'C', 'DR', 'CR'])",
+    "action": "standardize_debit_credit(debit_credit)",
+    "confidence": 0.9,
+    "explanation": "Transaction direction must be clearly and consistently indicated",
+    "canonical_concepts": ["debit_credit"]
+  },
+  {
+    "id": "finance_transaction_date_valid",
+    "domain": "finance",
+    "modality": "tabular",
+    "rule": "Transaction dates must be valid and within reasonable range",
+    "predicate": "is_valid_date(transaction_date) AND transaction_date >= '2000-01-01'",
+    "action": "validate_transaction_date(transaction_date)",
+    "confidence": 0.95,
+    "explanation": "Transaction dates must be valid for accurate financial reporting",
+    "canonical_concepts": ["transaction_date"]
+  },
+  {
+    "id": "finance_narrative_encoding",
+    "domain": "finance",
+    "modality": "tabular",
+    "rule": "Payment narratives should have proper encoding (no special encoding issues)",
+    "predicate": "is_valid_encoding(payment_narrative)",
+    "action": "normalize_encoding(payment_narrative)",
+    "confidence": 0.85,
+    "explanation": "Payment narratives should be properly encoded for readability",
+    "canonical_concepts": ["payment_narrative"]
+  },
+  {
+    "id": "finance_account_type_valid",
+    "domain": "finance",
+    "modality": "tabular",
+    "rule": "Account types must be from predefined list (CHECKING, SAVINGS, CREDIT, etc.)",
+    "predicate": "in(account_type, valid_account_types)",
+    "action": "validate_account_type(account_type, valid_account_types)",
+    "confidence": 0.85,
+    "explanation": "Account types should be standardized for proper categorization",
+    "canonical_concepts": ["account_type"]
+  },
+  {
+    "id": "finance_transaction_type_standardized",
+    "domain": "finance",
+    "modality": "tabular",
+    "rule": "Transaction types should be standardized (PURCHASE, TRANSFER, WITHDRAWAL, etc.)",
+    "predicate": "in(transaction_type, valid_transaction_types)",
+    "action": "validate_transaction_type(transaction_type, valid_transaction_types)",
+    "confidence": 0.85,
+    "explanation": "Standardized transaction types improve reporting and analysis",
+    "canonical_concepts": ["transaction_type"]
+  },
+  {
+    "id": "finance_balance_consistency",
+    "domain": "finance",
+    "modality": "tabular",
+    "rule": "Account balances should be consistent with transaction amounts",
+    "predicate": "balance_consistent_with_transactions(account_id, balance, transactions)",
+    "action": "validate_balance_consistency(account_id)",
+    "confidence": 0.8,
+    "explanation": "Account balances should reconcile with transaction history"
+  }
+]
+

@@ -1,0 +1,92 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body, #root {
+    height: 100%;
+    background-color: #0a0a0f;
+    color: #e8e8f0;
+    font-family: 'DM Sans', system-ui, sans-serif;
+  }
+
+  ::selection {
+    background: rgba(124, 92, 252, 0.35);
+    color: #e8e8f0;
+  }
+
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: #111118; }
+  ::-webkit-scrollbar-thumb { background: #2a2a3a; border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: #3d2e7a; }
+}
+
+@layer components {
+  .cp-card {
+    @apply bg-cp-card border border-cp-border rounded-xl p-5;
+  }
+
+  .cp-input {
+    @apply w-full bg-cp-surface border border-cp-border rounded-lg px-4 py-3 text-cp-text placeholder-cp-faint
+    focus:outline-none focus:border-cp-purple focus:ring-1 focus:ring-cp-purple/40
+    transition-colors duration-200 text-sm;
+  }
+
+  .cp-btn-primary {
+    @apply bg-cp-purple hover:bg-cp-purple-light text-white font-medium px-5 py-2.5 rounded-lg
+    transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed
+    text-sm flex items-center gap-2 justify-center;
+  }
+
+  .cp-btn-ghost {
+    @apply border border-cp-border hover:border-cp-purple/50 text-cp-muted hover:text-cp-text
+    font-medium px-5 py-2.5 rounded-lg transition-all duration-200 text-sm
+    flex items-center gap-2 justify-center;
+  }
+
+  .cp-badge {
+    @apply inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium;
+  }
+
+  .cp-badge-purple {
+    @apply cp-badge bg-cp-purple-dim text-cp-purple-light;
+  }
+
+  .cp-badge-cyan {
+    @apply cp-badge bg-cyan-900/30 text-cyan-300;
+  }
+
+  .cp-badge-green {
+    @apply cp-badge bg-green-900/30 text-green-400;
+  }
+
+  .cp-badge-red {
+    @apply cp-badge bg-red-900/30 text-red-400;
+  }
+
+  .cp-badge-amber {
+    @apply cp-badge bg-amber-900/30 text-amber-400;
+  }
+}
+
+/* Glow ring on focused inputs */
+.cp-input:focus {
+  box-shadow: 0 0 0 3px rgba(124, 92, 252, 0.15);
+}
+
+/* Animated gradient border for auth card */
+.auth-card-border {
+  position: relative;
+  border-radius: 16px;
+  background: #16161f;
+}
+.auth-card-border::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: 17px;
+  background: linear-gradient(135deg, #7c5cfc33, #00d4d822, #7c5cfc11);
+  z-index: -1;
+}
