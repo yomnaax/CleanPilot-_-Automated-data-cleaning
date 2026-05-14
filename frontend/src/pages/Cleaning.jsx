@@ -1,7 +1,22 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { ArrowLeft, Play, Download, CheckCircle } from 'lucide-react'
-import { getRules, applyRules, getDataset, getDatasets } from '../api/client'
+import { ArrowLeft, Play, Download, CheckCircle, Loader2 } from 'lucide-react'
+import { getRules, applyRules, getDataset, getDatasets, downloadCleanedDataset } from '../api/client'
+
+function MetricBar({ label, value, color, textColor }) {
+  const pct = Math.min(100, Math.max(0, value * 100))
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-1">
+        <span className="text-gray-400">{label}</span>
+        <span className={`font-bold ${textColor}`}>{pct.toFixed(2)}%</span>
+      </div>
+      <div className="w-full bg-gray-700 rounded-full h-2">
+        <div className={`${color} h-2 rounded-full transition-all`} style={{ width: `${pct.toFixed(1)}%` }} />
+      </div>
+    </div>
+  )
+}
 
 export default function Cleaning() {
   const { datasetId } = useParams()
@@ -16,6 +31,7 @@ export default function Cleaning() {
   const [sourceDatasetId, setSourceDatasetId] = useState('')
   const [applyGeneralPreprocessing, setApplyGeneralPreprocessing] = useState(false)
   const [showRuleBasedOptions, setShowRuleBasedOptions] = useState(false)
+  const [downloading, setDownloading] = useState(false)
 
   useEffect(() => {
     loadRuleSourceDatasets()
@@ -64,69 +80,75 @@ export default function Cleaning() {
     }
   }
 
-  const handleApply = async (preview = true) => {
-    if (!sourceDatasetId && !applyGeneralPreprocessing) {
+  const handleApply = async (preview = true, useGeneralPreprocessing = null) => {
+    // Allow passing general preprocessing state directly to avoid React async state timing issues
+    const generalPreprocessing = useGeneralPreprocessing !== null ? useGeneralPreprocessing : applyGeneralPreprocessing
+
+    if (!sourceDatasetId && !generalPreprocessing) {
       alert('Please choose which dataset rules you want to apply, or enable general preprocessing')
       return
     }
-    if (selectedRules.length === 0 && !applyGeneralPreprocessing) {
+    if (selectedRules.length === 0 && !generalPreprocessing) {
       alert('Please select at least one rule, or enable general preprocessing')
       return
     }
 
     setProcessing(true)
-    setResult(null) // Clear previous results
+    setResult(null)
     try {
-      // Pass empty array if no rules selected, but preprocessing is enabled
-      const ruleIdsToSend = applyGeneralPreprocessing && selectedRules.length === 0 ? [] : selectedRules
-      // Convert empty string to null for reference_dataset_id
+      const ruleIdsToSend = generalPreprocessing && selectedRules.length === 0 ? [] : selectedRules
       const refDatasetId = sourceDatasetId && sourceDatasetId !== '' ? parseInt(sourceDatasetId) : null
-      
-      console.log('Sending apply request:', {
-        datasetId,
-        ruleIdsToSend,
-        preview,
-        refDatasetId,
-        applyGeneralPreprocessing
-      })
-      
-      const response = await applyRules(datasetId, ruleIdsToSend, preview, refDatasetId, applyGeneralPreprocessing)
-      
-      console.log('Full response:', response)
-      console.log('Response data:', response.data)
-      console.log('Before sample:', response.data?.before_sample)
-      console.log('After sample:', response.data?.after_sample)
-      console.log('Summary:', response.data?.summary)
-      console.log('Accuracy metrics:', response.data?.summary?.accuracy_metrics)
-      
+      const response = await applyRules(datasetId, ruleIdsToSend, preview, refDatasetId, generalPreprocessing)
       if (response && response.data) {
-      setResult(response.data)
-        console.log('Result state set:', response.data)
-        
-        // Scroll to results after setting them
+        setResult(response.data)
         setTimeout(() => {
-          const resultsElement = document.querySelector('[data-results-section]')
-          if (resultsElement) {
-            resultsElement.scrollIntoView({ behavior: 'smooth', block: 'start' })
-          } else {
-            console.warn('Results element not found')
-          }
-        }, 500)
+          document.querySelector('[data-results-section]')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        }, 300)
       } else {
-        console.error('Invalid response structure:', response)
-        alert('Received invalid response from server. Check console for details.')
+        alert('Received invalid response from server.')
       }
     } catch (error) {
-      console.error('Apply error:', error)
-      console.error('Error details:', {
-        message: error.message,
-        response: error.response,
-        data: error.response?.data
-      })
-      const errorMsg = error.response?.data?.detail || error.response?.data?.message || error.message || JSON.stringify(error.response?.data || error)
+      const errorMsg = error.response?.data?.detail || error.response?.data?.message || error.message
       alert('Failed to apply rules: ' + errorMsg)
     } finally {
       setProcessing(false)
+    }
+  }
+
+  const handleDownload = async () => {
+    if (!result?.run_id) return
+    setDownloading(true)
+    try {
+      const response = await downloadCleanedDataset(datasetId, result.run_id)
+      const blob = new Blob([response.data], { type: 'text/csv' })
+      const suggestedName = `${dataset?.name?.replace(/\.csv$/i, '') || 'cleaned'}_cleaned.csv`
+
+      if (window.showSaveFilePicker) {
+        // Native Save As dialog
+        const handle = await window.showSaveFilePicker({
+          suggestedName,
+          types: [{ description: 'CSV file', accept: { 'text/csv': ['.csv'] } }],
+        })
+        const writable = await handle.createWritable()
+        await writable.write(blob)
+        await writable.close()
+      } else {
+        // Fallback: trigger browser download
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = suggestedName
+        document.body.appendChild(a)
+        a.click()
+        a.remove()
+        URL.revokeObjectURL(url)
+      }
+    } catch (err) {
+      if (err.name !== 'AbortError') {
+        alert('Download failed: ' + (err.response?.data?.detail || err.message))
+      }
+    } finally {
+      setDownloading(false)
     }
   }
 
@@ -210,10 +232,7 @@ export default function Cleaning() {
           </p>
           <div className="flex space-x-3">
             <button
-              onClick={() => {
-                setApplyGeneralPreprocessing(true)
-                handleApply(true)
-              }}
+              onClick={() => { setApplyGeneralPreprocessing(true); handleApply(true, true) }}
               disabled={processing}
               className="flex-1 flex items-center justify-center px-4 py-3 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
@@ -221,10 +240,7 @@ export default function Cleaning() {
               {processing ? 'Processing...' : 'Preview'}
             </button>
             <button
-              onClick={() => {
-                setApplyGeneralPreprocessing(true)
-                handleApply(false)
-              }}
+              onClick={() => { setApplyGeneralPreprocessing(true); handleApply(false, true) }}
               disabled={processing}
               className="flex-1 flex items-center justify-center px-4 py-3 bg-green-600 text-white rounded-md text-sm font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
@@ -394,158 +410,177 @@ export default function Cleaning() {
         </>
       ) : null}
 
-      {/* Results section - Always visible when result exists, regardless of source dataset */}
-      {result ? (
-            <div data-results-section className="mt-6 bg-white dark:bg-gray-900 rounded-lg shadow p-6 border-2 border-blue-200 dark:border-blue-800">
-              <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-4 flex items-center">
-                <span className="mr-2">📊</span>
-                Cleaning Results
-              </h3>
-              {/* Debug info */}
-              <div className="mb-4 p-2 bg-gray-100 dark:bg-gray-800 rounded text-xs">
-                <strong>Debug:</strong> Result received. Has summary: {result.summary ? 'Yes' : 'No'}, 
-                Has before_sample: {result.before_sample ? 'Yes' : 'No'}, 
-                Has after_sample: {result.after_sample ? 'Yes' : 'No'}
-          </div>
-              <div className="space-y-2 text-sm">
-                {result.summary?.general_preprocessing && (
-                  <div className="mb-4 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-                    <h4 className="font-semibold text-gray-900 dark:text-gray-100 mb-2">General Preprocessing</h4>
-                    <div className="space-y-1 text-sm">
-                      <p><span className="font-medium">Nulls Imputed:</span> {result.summary.general_preprocessing.nulls_imputed || 0}</p>
-                      <p><span className="font-medium">Whitespace Trimmed:</span> {result.summary.general_preprocessing.whitespace_trimmed || 0}</p>
-                      <p><span className="font-medium">Duplicates Removed:</span> {result.summary.general_preprocessing.duplicates_removed || 0}</p>
-                      <p><span className="font-medium">Case Standardized:</span> {result.summary.general_preprocessing.case_standardized || 0}</p>
-                      <p><span className="font-medium">Outliers Clipped:</span> {result.summary.general_preprocessing.outliers_clipped || 0}</p>
-                      <p><span className="font-medium">Rows:</span> {result.summary.general_preprocessing.rows_before || 0} → {result.summary.general_preprocessing.rows_after || 0}</p>
-                    </div>
-                  </div>
-                )}
-                <p><span className="font-medium">Rules Applied:</span> {result.summary?.rules_applied || 0}</p>
-                <p><span className="font-medium">Total Changes:</span> {result.summary?.total_changes || 0}</p>
-                <p><span className="font-medium">Rows Affected:</span> {result.summary?.rows_affected || 0}</p>
-                {result.preview_path && (
-                  <p className="text-blue-600">
-                    Preview available at: {result.preview_path}
-                  </p>
-                )}
-                {result.output_path && (
-                  <p className="text-green-600">
-                    Output saved to: {result.output_path}
-                  </p>
-                )}
-              </div>
+      {/* Results section */}
+      {result && (
+        <div data-results-section className="mt-6 bg-white dark:bg-gray-900 rounded-lg shadow p-6 border-2 border-blue-200 dark:border-blue-800">
 
-              {result.summary?.accuracy_metrics && (
-                <div className="mt-6 p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
-                  <h4 className="text-md font-semibold text-gray-900 dark:text-gray-100 mb-3">Accuracy Metrics</h4>
-                  <div className="space-y-3 text-sm">
-                    {result.summary.accuracy_metrics.overall_accuracy !== null && result.summary.accuracy_metrics.overall_accuracy !== undefined && (
-                      <div className="flex items-center justify-between">
-                        <span className="font-medium text-gray-700 dark:text-gray-300">Overall Accuracy:</span>
-                        <span className="text-lg font-bold text-green-600 dark:text-green-400">
-                          {(result.summary.accuracy_metrics.overall_accuracy * 100).toFixed(2)}%
-                        </span>
-                      </div>
-                    )}
-                    
-                    {result.summary.accuracy_metrics.rule_compliance && (
-                      <div className="flex items-center justify-between">
-                        <span className="font-medium text-gray-700 dark:text-gray-300">Rule Compliance:</span>
-                        <span className="text-lg font-bold text-blue-600 dark:text-blue-400">
-                          {(result.summary.accuracy_metrics.rule_compliance.compliance_rate * 100).toFixed(2)}%
-                        </span>
-                      </div>
-                    )}
-                    
-                    {result.summary.accuracy_metrics.row_coverage !== undefined && (
-                      <div className="flex items-center justify-between">
-                        <span className="font-medium text-gray-700 dark:text-gray-300">Row Coverage:</span>
-                        <span className="text-gray-600 dark:text-gray-400">
-                          {(result.summary.accuracy_metrics.row_coverage * 100).toFixed(2)}%
-                          {result.summary.accuracy_metrics.matching_rows !== undefined && (
-                            <span className="ml-2 text-xs text-gray-500">
-                              ({result.summary.accuracy_metrics.matching_rows} / {result.summary.accuracy_metrics.reference_rows} rows)
-                            </span>
-                          )}
-                        </span>
-                      </div>
-                    )}
-                    
-                    {result.summary.accuracy_metrics.column_accuracy && Object.keys(result.summary.accuracy_metrics.column_accuracy).length > 0 && (
-                      <div className="mt-4">
-                        <p className="font-medium text-gray-700 dark:text-gray-300 mb-2">Column Accuracy:</p>
-                        <div className="space-y-1 max-h-40 overflow-y-auto">
-                          {Object.entries(result.summary.accuracy_metrics.column_accuracy).map(([col, acc]) => (
-                            <div key={col} className="flex items-center justify-between text-xs">
-                              <span className="text-gray-600 dark:text-gray-400 truncate max-w-[200px]">{col}:</span>
-                              <span className="ml-2 font-medium text-gray-700 dark:text-gray-300">
-                                {(acc.accuracy * 100).toFixed(1)}%
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    
-                    {result.summary.accuracy_metrics.note && (
-                      <p className="text-xs text-gray-500 dark:text-gray-400 italic mt-2">
-                        {result.summary.accuracy_metrics.note}
-                      </p>
-                    )}
-                    
-                    {result.summary.accuracy_metrics.error && (
-                      <p className="text-xs text-red-600 dark:text-red-400 mt-2">
-                        Error: {result.summary.accuracy_metrics.error}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              )}
+          {/* Header */}
+          <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2 mb-6">
+            <span>📊</span>
+            Cleaning Results
+          </h3>
 
-              {/* Always show before/after if they exist */}
-              {result.before_sample && result.after_sample ? (
-                <div className="mt-6">
-                  <h4 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Before & After Comparison</h4>
-                  <div className="grid gap-6 md:grid-cols-2">
-                    <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
-                      <h5 className="text-md font-semibold text-gray-900 dark:text-gray-100 mb-3">Before Cleaning (sample)</h5>
-                      {renderSampleTable(result.before_sample)}
-                    </div>
-                    <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4">
-                      <h5 className="text-md font-semibold text-gray-900 dark:text-gray-100 mb-3">After Cleaning (sample)</h5>
-                    {renderSampleTable(result.after_sample)}
-                    </div>
-                  </div>
-                </div>
+          {/* Stats row */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+            <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 text-center">
+              <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                {result.summary?.rules_applied || 0}
+              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Rules Applied</p>
+            </div>
+            <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 text-center">
+              <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">
+                {result.summary?.total_changes || 0}
+              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Total Changes</p>
+            </div>
+            <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 text-center">
+              <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">
+                {result.summary?.rows_affected || 0}
+              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Rows Affected</p>
+            </div>
+            <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 text-center">
+              {result.summary?.accuracy_metrics?.overall_accuracy != null ? (
+                <>
+                  <p className="text-2xl font-bold text-green-600 dark:text-green-400">
+                    {(result.summary.accuracy_metrics.overall_accuracy * 100).toFixed(1)}%
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Overall Accuracy</p>
+                </>
               ) : (
-                <div className="mt-4 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Before/after samples not available. Check console for details.
-                  </p>
-                </div>
-              )}
-              
-              {!result.summary?.accuracy_metrics && sourceDatasetId && (
-                <div className="mt-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
-                  <p className="text-sm text-yellow-800 dark:text-yellow-200">
-                    <span className="font-medium">Note:</span> Accuracy metrics are only calculated when a reference dataset is provided. 
-                    To see accuracy, make sure you're applying rules from a reference dataset that was used for rule extraction.
-                  </p>
-                </div>
+                <>
+                  <p className="text-2xl font-bold text-gray-400">—</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Overall Accuracy</p>
+                </>
               )}
             </div>
-          ) : null}
+          </div>
+
+          {/* General Preprocessing Stats */}
+          {result.summary?.general_preprocessing && (
+            <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+              <h4 className="font-semibold text-gray-900 dark:text-gray-100 mb-3">General Preprocessing</h4>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
+                <div>
+                  <span className="text-gray-500 dark:text-gray-400">Nulls Imputed</span>
+                  <p className="font-semibold text-gray-900 dark:text-gray-100">{result.summary.general_preprocessing.nulls_imputed || 0}</p>
+                </div>
+                <div>
+                  <span className="text-gray-500 dark:text-gray-400">Whitespace Trimmed</span>
+                  <p className="font-semibold text-gray-900 dark:text-gray-100">{result.summary.general_preprocessing.whitespace_trimmed || 0}</p>
+                </div>
+                <div>
+                  <span className="text-gray-500 dark:text-gray-400">Duplicates Removed</span>
+                  <p className="font-semibold text-gray-900 dark:text-gray-100">{result.summary.general_preprocessing.duplicates_removed || 0}</p>
+                </div>
+                <div>
+                  <span className="text-gray-500 dark:text-gray-400">Case Standardized</span>
+                  <p className="font-semibold text-gray-900 dark:text-gray-100">{result.summary.general_preprocessing.case_standardized || 0}</p>
+                </div>
+                <div>
+                  <span className="text-gray-500 dark:text-gray-400">Outliers Clipped</span>
+                  <p className="font-semibold text-gray-900 dark:text-gray-100">{result.summary.general_preprocessing.outliers_clipped || 0}</p>
+                </div>
+                <div>
+                  <span className="text-gray-500 dark:text-gray-400">Rows</span>
+                  <p className="font-semibold text-gray-900 dark:text-gray-100">
+                    {result.summary.general_preprocessing.rows_before || 0} → {result.summary.general_preprocessing.rows_after || 0}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Accuracy Metrics */}
+          {result.summary?.accuracy_metrics && (
+            <div className="mb-6 p-4 bg-green-900/10 rounded-lg border border-green-800/40">
+              <h4 className="font-semibold text-gray-100 mb-4 text-sm uppercase tracking-wide">
+                Accuracy &amp; Quality Metrics
+              </h4>
+              {(() => {
+                const am = result.summary.accuracy_metrics
+                return (
+                  <div className="space-y-3 text-sm">
+                    {am.overall_accuracy != null && (
+                      <MetricBar label="Overall Data Quality Score" value={am.overall_accuracy} color="bg-green-500" textColor="text-green-400" />
+                    )}
+                    {am.completeness_after != null && (
+                      <MetricBar label="Completeness After Cleaning" value={am.completeness_after} color="bg-blue-500" textColor="text-blue-400" />
+                    )}
+                    {am.null_reduction_rate != null && (
+                      <MetricBar label="Null Reduction Rate" value={am.null_reduction_rate} color="bg-purple-500" textColor="text-purple-400" />
+                    )}
+                    {am.row_retention_rate != null && (
+                      <MetricBar label="Row Retention Rate" value={am.row_retention_rate} color="bg-cyan-500" textColor="text-cyan-400" />
+                    )}
+                    {am.duplicate_reduction_rate != null && (
+                      <MetricBar label="Duplicate Reduction" value={am.duplicate_reduction_rate} color="bg-amber-500" textColor="text-amber-400" />
+                    )}
+                    {am.change_rate != null && (
+                      <div className="flex items-center justify-between pt-1">
+                        <span className="text-gray-400">Cells Modified</span>
+                        <span className="text-gray-300 font-medium">
+                          {am.cells_changed != null ? `${am.cells_changed.toLocaleString()} cells` : ''}{' '}
+                          <span className="text-gray-500 text-xs">({(am.change_rate * 100).toFixed(2)}%)</span>
+                        </span>
+                      </div>
+                    )}
+                    {am.completeness_before != null && am.completeness_after != null && (
+                      <div className="flex items-center justify-between pt-1 border-t border-gray-700 mt-2">
+                        <span className="text-gray-400">Completeness</span>
+                        <span className="text-gray-300">
+                          <span className="text-red-400">{(am.completeness_before * 100).toFixed(1)}%</span>
+                          <span className="text-gray-500 mx-2">→</span>
+                          <span className="text-green-400">{(am.completeness_after * 100).toFixed(1)}%</span>
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )
+              })()}
+            </div>
+          )}
+
+          {/* Before & After Comparison */}
+          {result.before_sample && result.after_sample ? (
+            <div className="mt-4">
+              <h4 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Before & After Comparison</h4>
+              <div className="grid gap-6 md:grid-cols-2">
+                <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
+                  <h5 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Before Cleaning (sample)</h5>
+                  {renderSampleTable(result.before_sample)}
+                </div>
+                <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4">
+                  <h5 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">After Cleaning (sample)</h5>
+                  {renderSampleTable(result.after_sample)}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="mt-4 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Before/after samples not available.
+              </p>
+            </div>
+          )}
+
+          {/* Bottom save button */}
+          {result.output_path && (
+            <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700 flex justify-end">
+              <button
+                onClick={handleDownload}
+                disabled={downloading}
+                className="flex items-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors"
+              >
+                {downloading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Download className="h-5 w-5" />}
+                {downloading ? 'Downloading…' : 'Download Cleaned Dataset (.csv)'}
+              </button>
+            </div>
+          )}
+
+        </div>
+      )}
     </div>
   )
 }
-
-
-
-
-
-
-
-
-
-

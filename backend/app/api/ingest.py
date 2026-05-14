@@ -137,15 +137,15 @@ def delete_dataset(
     if rule_ids:
         db.query(models.Feedback).filter(
             models.Feedback.rule_id.in_(rule_ids)
-        ).delete(synchronize_session=False)
+        ).delete(synchronize_session='fetch')
 
     db.query(models.Rule).filter(
         models.Rule.dataset_id == dataset_id
-    ).delete(synchronize_session=False)
+    ).delete(synchronize_session='fetch')
 
     db.query(models.Run).filter(
         models.Run.dataset_id == dataset_id
-    ).delete(synchronize_session=False)
+    ).delete(synchronize_session='fetch')
 
     try:
         import os

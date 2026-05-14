@@ -35,7 +35,16 @@ def read_dataframe(file_path: str, sample_rows: int | None = None) -> pd.DataFra
     format_type = detect_format(file_path)
     
     if format_type == 'csv':
-        df = pd.read_csv(file_path, low_memory=False)
+        try:
+            df = pd.read_csv(file_path, low_memory=False)
+        except UnicodeDecodeError:
+            df = pd.read_csv(file_path, low_memory=False, encoding='latin-1')
+        # Fix semicolon-separated files detected as single column
+        if len(df.columns) == 1 and ';' in str(df.columns[0]):
+            try:
+                df = pd.read_csv(file_path, sep=';', low_memory=False)
+            except UnicodeDecodeError:
+                df = pd.read_csv(file_path, sep=';', low_memory=False, encoding='latin-1')
     elif format_type == 'json':
         try:
             df = pd.read_json(file_path, orient='records')

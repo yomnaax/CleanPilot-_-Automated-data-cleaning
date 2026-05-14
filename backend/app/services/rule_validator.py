@@ -122,11 +122,11 @@ COLUMN DATA SAMPLES:
 {feedback_context}
 
 TASK:
-1. Analyze if the rule makes sense for this dataset
-2. Check if the rule's predicate is actually true on the data
-3. Consider if the rule's action is appropriate
-4. Evaluate if the confidence/compliance scores are reasonable
-5. Consider user feedback patterns if available
+1. Determine the rule type: is this a SEMANTIC/DOMAIN rule (reflects domain knowledge like medical thresholds, business logic) or an OPERATIONAL rule (strict data constraint like not-null, range check)?
+2. For SEMANTIC rules: evaluate whether the domain knowledge is valid, not whether it can be mechanically applied to the data
+3. For OPERATIONAL rules: check if the predicate is actually true on the data
+4. Consider if the action is appropriate for the rule type
+5. Do NOT disagree with a rule just because the dataset sample does not fully demonstrate it — semantic rules are expectations, not observations
 
 Return your opinion as JSON with this structure:
 {{
@@ -137,9 +137,7 @@ Return your opinion as JSON with this structure:
     "suggestions": ["suggestions for improvement if any"]
 }}
 
-Be specific and data-driven. If you disagree, explain why. If uncertain, explain what information is missing.
-"""
-    
+Be specific. For semantic/domain rules, high confidence agree is appropriate if the domain knowledge is sound."""
     try:
         print("Calling LLM for rule validation...")
         # Determine provider and model from configuration.  Prefer the LLM_PROVIDER

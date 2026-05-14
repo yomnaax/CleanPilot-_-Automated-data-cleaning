@@ -92,6 +92,12 @@ export const applyRules = (
     apply_general_preprocessing: applyGeneralPreprocessing,
   })
 
+export const downloadCleanedDataset = (datasetId, runId) =>
+  client.get(`/apply/${datasetId}/download`, {
+    params: { run_id: runId },
+    responseType: 'blob',
+  })
+
 // ─── Validation ───────────────────────────────────────────────────────────────
 export const validateDataset = (datasetId, ruleIds) =>
   client.post(`/validate/${datasetId}`, { rule_ids: ruleIds })

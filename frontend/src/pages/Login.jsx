@@ -117,6 +117,11 @@ export default function Login() {
             Create one
           </Link>
         </p>
+        <p className="text-center text-sm text-cp-muted mt-3">
+          <Link to="/about" className="text-cp-faint hover:text-cp-muted transition-colors">
+            About CleanPilot
+          </Link>
+        </p>
       </div>
     </div>
   )

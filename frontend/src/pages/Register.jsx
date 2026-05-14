@@ -80,7 +80,7 @@ export default function Register() {
                   type="text"
                   value={fullName}
                   onChange={e => setFullName(e.target.value)}
-                  placeholder="Yomna Hassan"
+                  placeholder="Jane Doe"
                   className="cp-input"
                   autoComplete="name"
                   autoFocus
@@ -146,6 +146,11 @@ export default function Register() {
           Already have an account?{' '}
           <Link to="/login" className="text-cp-purple-light hover:text-cp-purple transition-colors font-medium">
             Sign in
+          </Link>
+        </p>
+        <p className="text-center text-sm text-cp-muted mt-3">
+          <Link to="/about" className="text-cp-faint hover:text-cp-muted transition-colors">
+            About CleanPilot
           </Link>
         </p>
       </div>

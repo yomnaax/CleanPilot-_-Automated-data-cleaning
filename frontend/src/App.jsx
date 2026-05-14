@@ -8,6 +8,7 @@ import Upload from './pages/Upload'
 import DatasetDetail from './pages/DatasetDetail'
 import Rules from './pages/Rules'
 import Cleaning from './pages/Cleaning'
+import AboutUs from './pages/AboutUs'
 
 function ProtectedRoute({ children }) {
   const { isAuthenticated, loading } = useAuth()
@@ -36,6 +37,7 @@ function AppRoutes() {
       {/* Public routes */}
       <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
       <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
+      <Route path="/about" element={<AboutUs />} />
 
       {/* Protected routes */}
       <Route path="/" element={

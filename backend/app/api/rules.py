@@ -100,10 +100,10 @@ def update_rule(rule_id: int, updates: RuleUpdate, db: Session = Depends(get_db)
     if 'action' in update_dict:
         rule.action = updates.action
     if 'targets' in update_dict:
-        rule.targets = rule_store._json_sanitize(updates.targets)
-    if 'targets' in update_dict:
-        # Ensure JSON-serializable types
-        rule.targets = rule_store.json_sanitize(updates.targets)
+        rule.targets = updates.targets
+    # if 'targets' in update_dict:
+    #     # Ensure JSON-serializable types
+    #     rule.targets = rule_store.json_sanitize(updates.targets)
     
     db.commit()
     db.refresh(rule)

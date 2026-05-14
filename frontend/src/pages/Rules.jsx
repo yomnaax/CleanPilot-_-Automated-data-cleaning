@@ -225,13 +225,13 @@ export default function Rules() {
   }
 
   const handleApprove = async (ruleId) => {
-    try {
-      await updateRule(ruleId, { approved: true })
-      loadRules()
-    } catch (error) {
-      alert('Failed to approve rule: ' + (error.response?.data?.detail || error.message))
-    }
+  try {
+    await updateRule(ruleId, { approved: true })
+    setRules(prev => prev.map(r => r.id === ruleId ? { ...r, approved: true } : r))
+  } catch (error) {
+    alert('Failed to approve rule: ' + (error.response?.data?.detail || error.message))
   }
+}
 
   const openAdjust = (rule) => {
     setAdjustRule(rule)

@@ -65,7 +65,8 @@ class RuleEvaluator:
                 col = match.group(1)
                 min_val = float(match.group(2))
                 max_val = float(match.group(3))
-                return (df[col] >= min_val) & (df[col] <= max_val)
+                col_numeric = pd.to_numeric(df[col], errors='coerce')
+                return (col_numeric >= min_val) & (col_numeric <= max_val)
 
         elif "range(" in predicate:
             # Canonical range predicate: range(col, min=..., max=...)
@@ -74,7 +75,8 @@ class RuleEvaluator:
                 col = match.group(1).strip()
                 min_val = float(match.group(2))
                 max_val = float(match.group(3))
-                return (df[col] >= min_val) & (df[col] <= max_val)
+                col_numeric = pd.to_numeric(df[col], errors='coerce')
+                return (col_numeric >= min_val) & (col_numeric <= max_val)
         
         # Default: return all True (no filtering)
         return pd.Series([True] * len(df))
@@ -135,6 +137,7 @@ class RuleApplier:
                 if match:
                     min_val = float(match.group(1))
                     max_val = float(match.group(2))
+                    df[col] = pd.to_numeric(df[col], errors='coerce')
                     df.loc[df[col] < min_val, col] = min_val
                     df.loc[df[col] > max_val, col] = max_val
         
@@ -153,6 +156,50 @@ class RuleApplier:
                 pass
         
         return df
+
+
+def compute_accuracy_metrics(df_original: pd.DataFrame, df_cleaned: pd.DataFrame) -> Dict[str, Any]:
+    """Compute data quality metrics by comparing original vs cleaned dataframe."""
+    metrics: Dict[str, Any] = {}
+    total_cells = df_original.shape[0] * df_original.shape[1]
+    if total_cells == 0:
+        return metrics
+
+    null_before = int(df_original.isnull().sum().sum())
+    null_after = int(df_cleaned.isnull().sum().sum())
+    completeness_before = round(1.0 - null_before / total_cells, 4)
+    completeness_after = round(1.0 - null_after / total_cells, 4)
+
+    row_retention = round(min(len(df_cleaned), len(df_original)) / max(len(df_original), 1), 4)
+
+    # Overall quality: weighted completeness + row retention
+    overall = round(completeness_after * 0.7 + row_retention * 0.3, 4)
+
+    metrics["overall_accuracy"] = overall
+    metrics["completeness_before"] = completeness_before
+    metrics["completeness_after"] = completeness_after
+    metrics["null_reduction_rate"] = round((null_before - null_after) / null_before, 4) if null_before > 0 else 1.0
+    metrics["row_retention_rate"] = row_retention
+
+    dups_before = int(df_original.duplicated().sum())
+    dups_after = int(df_cleaned.duplicated().sum())
+    if dups_before > 0:
+        metrics["duplicate_reduction_rate"] = round((dups_before - dups_after) / dups_before, 4)
+
+    # Cell-level change rate
+    try:
+        common_cols = [c for c in df_original.columns if c in df_cleaned.columns]
+        min_rows = min(len(df_original), len(df_cleaned))
+        if common_cols and min_rows > 0:
+            orig_s = df_original[common_cols].iloc[:min_rows].fillna("__NULL__").astype(str)
+            clean_s = df_cleaned[common_cols].iloc[:min_rows].fillna("__NULL__").astype(str)
+            changed = int((orig_s != clean_s).sum().sum())
+            metrics["cells_changed"] = changed
+            metrics["change_rate"] = round(changed / (min_rows * len(common_cols)), 4)
+    except Exception:
+        pass
+
+    return metrics
 
 
 def apply_rules(
@@ -411,15 +458,15 @@ def apply_rules(
             "rules_applied": len([r for r in rules if r.approved]),
             "total_changes": len(changes),
             "rows_affected": sum(c["rows_affected"] for c in changes),
+            # Store output_path so the download endpoint can find the file
+            "output_path": output_path,
+            "preview_path": preview_path,
         }
         # Include general preprocessing counts if performed
         if general_summary is not None:
             summary["general_preprocessing"] = general_summary
-        # Accuracy metrics placeholder when reference dataset provided
-        if reference_dataset_id is not None:
-            summary["accuracy_metrics"] = {
-                "note": "Accuracy metrics not implemented for this version",
-            }
+        # Compute accuracy metrics from original vs cleaned data
+        summary["accuracy_metrics"] = compute_accuracy_metrics(df_original, df_cleaned)
 
         run.status = models.RunStatus.COMPLETED
         run.completed_at = datetime.utcnow()
