@@ -22,7 +22,7 @@ DOMAIN_CONTEXT = {
     "healthcare": {
         "description": "a healthcare/medical dataset",
         "hints": [
-            "Patient ages should be between 0 and 130",
+            "Patient ages should be between 0 and 100",
             "Blood pressure systolic: 60–250, diastolic: 40–150",
             "BMI should be between 10 and 80",
             "Heart rate should be between 30 and 250 bpm",

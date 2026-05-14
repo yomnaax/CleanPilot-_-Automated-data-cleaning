@@ -177,8 +177,10 @@ export default function Upload() {
             <option value="finance">Finance (Transactions, accounts, merchant descriptions, payment narratives)</option>
             <option value="ecommerce">E-commerce (Products, orders, customers)</option>
             <option value="healthcare">Healthcare (Patient data, medical records)</option>
+            <option value="hr">HR (Employees, salaries, performance, attrition)</option>
             <option value="retail">Retail (Inventory, sales, stores)</option>
             <option value="education">Education (Students, courses, grades)</option>
+            <option value="logistics">Logistics (Shipments, delivery, supply chain)</option>
           </select>
           <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
             {domain === 'general' 
