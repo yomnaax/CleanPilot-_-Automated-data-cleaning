@@ -76,6 +76,12 @@
   box-shadow: 0 0 0 3px rgba(124, 92, 252, 0.15);
 }
 
+.light-input {
+  @apply w-full bg-white border border-gray-200 rounded-lg px-4 py-3 text-gray-900 placeholder-gray-400
+    focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500/40
+    transition-colors duration-200 text-sm;
+}
+
 /* Animated gradient border for auth card */
 .auth-card-border {
   position: relative;

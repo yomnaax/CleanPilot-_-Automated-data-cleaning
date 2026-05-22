@@ -1,7 +1,8 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { useTheme } from '../context/ThemeContext'
 import { LayoutDashboard, Upload, LogOut, ChevronDown, Satellite, Sun, Moon } from 'lucide-react'
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 
 const navItems = [
   { path: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -12,16 +13,8 @@ export default function Layout({ children }) {
   const location = useLocation()
   const navigate = useNavigate()
   const { user, logout } = useAuth()
+  const { dark, toggleDark } = useTheme()
   const [userMenuOpen, setUserMenuOpen] = useState(false)
-  const [dark, setDark] = useState(() => {
-    const saved = localStorage.getItem('theme')
-    return saved ? saved === 'dark' : true
-  })
-
-  useEffect(() => {
-    document.documentElement.classList.toggle('dark', dark)
-    localStorage.setItem('theme', dark ? 'dark' : 'light')
-  }, [dark])
 
   const handleLogout = () => {
     logout()
@@ -79,7 +72,7 @@ export default function Layout({ children }) {
 
               {/* Theme toggle */}
               <button
-                onClick={() => setDark(v => !v)}
+                onClick={toggleDark}
                 className={`w-9 h-9 rounded-lg flex items-center justify-center border transition-colors ${
                   dark
                     ? 'border-cp-border text-amber-400 hover:bg-white/5'
